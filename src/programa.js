@@ -7,6 +7,8 @@ let cargandoProyectos = false;
 let camposTablaMemo = null;
 let contenedorProyectos = null;
 let sitioInicializado = false;
+let todosLosProyectos = [];
+let temporizadorBusqueda = null;
 
 // =====================================================
 // INICIALIZACIÓN DEL SITIO
@@ -83,6 +85,9 @@ async function cargarYMostrarProyectos() {
       camposTablaMemo = await obtenerCamposTabla(TABLA_PROYECTOS.id);
     }
 
+    // Guardar todos los proyectos para el buscador
+    todosLosProyectos = proyectos;
+
     // Remover el mensaje de carga
     mensajeCarga.remove();
 
@@ -95,28 +100,18 @@ async function cargarYMostrarProyectos() {
       return;
     }
 
-    // Crear una tarjeta para cada proyecto
-    proyectos.forEach((proyecto) => {
-      const tarjeta = crearTarjetaProyecto({
-        titulo: proyecto[TABLA_PROYECTOS.campos.titulo],
-        descripcion: proyecto[TABLA_PROYECTOS.campos.descripcion],
-        imagen: proyecto[TABLA_PROYECTOS.campos.imagen],
-        enlace: proyecto[TABLA_PROYECTOS.campos.enlace],
-        registro: proyecto,
-        campos: camposTablaMemo,
-        camposBase: [
-          TABLA_PROYECTOS.campos.titulo,
-          TABLA_PROYECTOS.campos.descripcion,
-          TABLA_PROYECTOS.campos.imagen,
-          TABLA_PROYECTOS.campos.enlace,
-        ],
-      });
+    // Agregar buscador si hay proyectos
+    const espacioBuscador = document.getElementById('espacio-buscador');
+    if (espacioBuscador && !document.getElementById('buscador-proyectos')) {
+      const buscador = crearBuscador();
+      espacioBuscador.appendChild(buscador);
+    }
 
-      contenedorProyectos.appendChild(tarjeta);
-    });
+    // Mostrar todos los proyectos inicialmente
+    mostrarProyectos(proyectos);
 
     if (AVANZADO.debug) {
-      console.log(`✅ Se mostraron ${proyectos.length} proyectos`);
+      console.log(`✅ Se cargaron ${proyectos.length} proyectos`);
     }
   } catch (error) {
     mensajeCarga.remove();
@@ -128,6 +123,151 @@ async function cargarYMostrarProyectos() {
   } finally {
     cargandoProyectos = false;
   }
+}
+
+/**
+ * Normaliza texto para búsqueda (sin acentos, minúsculas)
+ */
+function normalizarTexto(texto) {
+  return String(texto || '')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '');
+}
+
+/**
+ * Extrae texto de todos los campos de un proyecto
+ */
+function extraerTextoCompleto(proyecto) {
+  const textos = [];
+  for (const valor of Object.values(proyecto)) {
+    if (valor === null || valor === undefined) continue;
+
+    if (Array.isArray(valor)) {
+      // Arrays (selects múltiples, archivos, etc.)
+      valor.forEach((item) => {
+        if (typeof item === 'object') {
+          textos.push(item.value || item.name || item.label || '');
+        } else {
+          textos.push(String(item));
+        }
+      });
+    } else if (typeof valor === 'object') {
+      // Objetos (selects simples, etc.)
+      textos.push(valor.value || valor.name || valor.label || '');
+    } else {
+      // Primitivos (string, number, boolean)
+      textos.push(String(valor));
+    }
+  }
+  return normalizarTexto(textos.join(' '));
+}
+
+/**
+ * Filtra proyectos por término de búsqueda
+ */
+function filtrarProyectos(termino) {
+  if (!termino.trim()) return todosLosProyectos;
+
+  const terminoNormalizado = normalizarTexto(termino);
+  return todosLosProyectos.filter((proyecto) => {
+    const textoCompleto = extraerTextoCompleto(proyecto);
+    return textoCompleto.includes(terminoNormalizado);
+  });
+}
+
+/**
+ * Muestra proyectos en el grid
+ */
+function mostrarProyectos(proyectos) {
+  contenedorProyectos.innerHTML = '';
+
+  if (proyectos.length === 0) {
+    const mensajeVacio = document.createElement('p');
+    mensajeVacio.className = 'mensaje-vacio';
+    mensajeVacio.textContent = '🔍 No se encontraron proyectos con ese término.';
+    contenedorProyectos.appendChild(mensajeVacio);
+    return;
+  }
+
+  proyectos.forEach((proyecto) => {
+    const tarjeta = crearTarjetaProyecto({
+      titulo: proyecto[TABLA_PROYECTOS.campos.titulo],
+      descripcion: proyecto[TABLA_PROYECTOS.campos.descripcion],
+      imagen: proyecto[TABLA_PROYECTOS.campos.imagen],
+      enlace: proyecto[TABLA_PROYECTOS.campos.enlace],
+      registro: proyecto,
+      campos: camposTablaMemo,
+      camposBase: [
+        TABLA_PROYECTOS.campos.titulo,
+        TABLA_PROYECTOS.campos.descripcion,
+        TABLA_PROYECTOS.campos.imagen,
+        TABLA_PROYECTOS.campos.enlace,
+      ],
+    });
+    contenedorProyectos.appendChild(tarjeta);
+  });
+
+  actualizarContadorResultados(proyectos.length);
+}
+
+/**
+ * Actualiza el contador de resultados
+ */
+function actualizarContadorResultados(cantidad) {
+  const contador = document.getElementById('contador-resultados');
+  if (contador) {
+    contador.textContent = `${cantidad} ${cantidad === 1 ? 'resultado' : 'resultados'}`;
+  }
+}
+
+/**
+ * Maneja la búsqueda con debouncing
+ */
+function manejarBusqueda(evento) {
+  const termino = evento.target.value;
+
+  // Limpiar temporizador anterior
+  if (temporizadorBusqueda) {
+    clearTimeout(temporizadorBusqueda);
+  }
+
+  // Esperar 300ms antes de buscar (debouncing)
+  temporizadorBusqueda = setTimeout(() => {
+    const proyectosFiltrados = filtrarProyectos(termino);
+    mostrarProyectos(proyectosFiltrados);
+
+    if (AVANZADO.debug) {
+      console.log(`🔍 Búsqueda: "${termino}" - ${proyectosFiltrados.length} resultados`);
+    }
+  }, 300);
+}
+
+/**
+ * Crea el input de búsqueda
+ */
+function crearBuscador() {
+  const contenedorBusqueda = document.createElement('div');
+  contenedorBusqueda.className = 'buscador-contenedor';
+
+  const input = document.createElement('input');
+  input.type = 'search';
+  input.id = 'buscador-proyectos';
+  input.className = 'buscador-input';
+  input.placeholder = '🔍 Buscar en proyectos...';
+  input.setAttribute('aria-label', 'Buscar proyectos');
+
+  const contador = document.createElement('span');
+  contador.id = 'contador-resultados';
+  contador.className = 'contador-resultados';
+  contador.textContent = `${todosLosProyectos.length} ${todosLosProyectos.length === 1 ? 'resultado' : 'resultados'}`;
+
+  input.addEventListener('input', manejarBusqueda);
+
+  contenedorBusqueda.appendChild(input);
+  contenedorBusqueda.appendChild(contador);
+
+  return contenedorBusqueda;
 }
 
 async function inicializarSitio() {
@@ -198,10 +338,21 @@ function construirSecciones(datosSitio) {
     clase: 'seccion-proyectos',
   });
 
+  // Crear contenedor wrapper para buscador y grid
+  const wrapperProyectos = document.createElement('div');
+  wrapperProyectos.className = 'proyectos-wrapper';
+
+  // El buscador se agregará después cuando los proyectos estén cargados
+  const espacioBuscador = document.createElement('div');
+  espacioBuscador.id = 'espacio-buscador';
+  wrapperProyectos.appendChild(espacioBuscador);
+
   // Crear el grid que se llenará con proyectos
   contenedorProyectos = document.createElement('div');
   contenedorProyectos.className = 'proyectos-grid';
-  seccionColeccion.appendChild(contenedorProyectos);
+  wrapperProyectos.appendChild(contenedorProyectos);
+
+  seccionColeccion.appendChild(wrapperProyectos);
   contenedor.appendChild(seccionColeccion);
 
   if (AVANZADO.debug) {
