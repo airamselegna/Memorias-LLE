@@ -10,7 +10,7 @@ import sitemap from 'vite-plugin-sitemap';
  */
 
 // ⭐ URL DEL SITIO - CAMBIAR AQUÍ
-const urlSitio = 'https://enflujo.github.io/enflujo-documento-al-dato';
+const urlSitio = 'https://airamselegna.github.io/Memorias-LLE/';
 
 export default defineConfig({
   // IMPORTANTE: Descomenta y ajusta según donde publiques en GitHub Pages
