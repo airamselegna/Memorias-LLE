@@ -78,7 +78,7 @@ export const BASEROW = {
 export const TABLA_PROYECTOS = {
   // El ID de la tabla en Baserow
   // Cómo conseguirlo: Ve a tu tabla, el URL es /database/[DB_ID]/table/[TABLE_ID]/
-  id: 829633,
+  id: 826873,
 
   // Los nombres de los campos en tu tabla
   // (deben coincidir exactamente con los nombres en Baserow)
@@ -98,7 +98,7 @@ export const TABLA_PROYECTOS = {
 // Esta tabla se usa para títulos, introducción, colección y contacto
 export const DATOS_SITIO = {
   // El ID de la tabla CMS en Baserow
-  id: 828827,
+  id: 829633,
 
   // Nombres exactos de los campos en esa tabla
   campos: {
