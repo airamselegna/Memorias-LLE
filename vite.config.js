@@ -14,7 +14,7 @@ const urlSitio = 'https://airamselegna.github.io/Memorias-LLE/';
 
 export default defineConfig({
   // IMPORTANTE: Descomenta y ajusta según donde publiques en GitHub Pages
-  base: '/enflujo-documento-al-dato/', // Para proyecto en repositorio
+  base: '/Memorias-LLE/', // Para proyecto en repositorio
 
   define: {
     __URL_SITIO__: JSON.stringify(urlSitio),
